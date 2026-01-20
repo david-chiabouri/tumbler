@@ -1,0 +1,16 @@
+{
+    "name": "first-model",
+    "version": "0.1.0",
+    "type": "module",
+    "dependencies": {
+        "tumbler-runtime": "../../packages/tumbler-runtime",
+        "@tumbler/client": "workspace:*",
+        "@tumbler/server": "workspace:*"
+    },
+    "scripts": {
+        "build": "bun run ../../packages/tumbler-cli/src/index.ts build ."
+    },
+    "devDependencies": {
+        "assemblyscript": "^0.27.31"
+    }
+}

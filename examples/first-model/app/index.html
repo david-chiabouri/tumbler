@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tumbler Hybrid Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tumbler Hybrid Model</h1>
+    <div>
+        <input type="text" id="payloadInput" placeholder="Enter payload" value="Hello World">
+        <button onclick="triggerEvent()">Trigger Event</button>
+        <button onclick="replayEvent()" style="background-color: #ffcccc;">⚠️ Replay Attack</button>
+    </div>
+    <div id="log"></div>
+    <script src="/main.js"></script>
+</body>
+
+</html>

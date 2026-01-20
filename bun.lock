@@ -4,20 +4,59 @@
   "workspaces": {
     "": {
       "name": "tumbler",
+      "dependencies": {
+        "tumbler": ".",
+      },
       "devDependencies": {
         "@types/bun": "latest",
+        "assemblyscript": "^0.28.9",
       },
       "peerDependencies": {
         "typescript": "^5",
       },
     },
+    "packages/tumbler-client": {
+      "name": "@tumbler/client",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/tumbler-runtime": {
+      "name": "tumbler-runtime",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/tumbler-server": {
+      "name": "@tumbler/server",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "typescript": "^5.0.0",
+      },
+    },
   },
   "packages": {
+    "@tumbler/client": ["@tumbler/client@workspace:packages/tumbler-client"],
+
+    "@tumbler/server": ["@tumbler/server@workspace:packages/tumbler-server"],
+
     "@types/bun": ["@types/bun@1.3.6", "", { "dependencies": { "bun-types": "1.3.6" } }, "sha512-uWCv6FO/8LcpREhenN1d1b6fcspAB+cefwD7uti8C8VffIv0Um08TKMn98FynpTiU38+y2dUO55T11NgDt8VAA=="],
 
     "@types/node": ["@types/node@25.0.9", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-/rpCXHlCWeqClNBwUhDcusJxXYDjZTyE8v5oTO7WbL8eij2nKhUeU89/6xgjU7N4/Vh3He0BtyhJdQbDyhiXAw=="],
 
+    "assemblyscript": ["assemblyscript@0.28.9", "", { "dependencies": { "binaryen": "123.0.0-nightly.20250530", "long": "^5.2.4" }, "bin": { "asc": "bin/asc.js", "asinit": "bin/asinit.js" } }, "sha512-UQqIYSUuJzqQP6fKTs1CtanyxmnDk7K+Kmj/J67agimxDqxjdMnTF/y9rEHUBL+K/VIEV4QYu57RMrL5LwbAvw=="],
+
+    "binaryen": ["binaryen@123.0.0-nightly.20250530", "", { "bin": { "wasm-as": "bin/wasm-as", "wasm2js": "bin/wasm2js", "wasm-dis": "bin/wasm-dis", "wasm-opt": "bin/wasm-opt", "wasm-merge": "bin/wasm-merge", "wasm-shell": "bin/wasm-shell", "wasm-reduce": "bin/wasm-reduce", "wasm-metadce": "bin/wasm-metadce", "wasm-ctor-eval": "bin/wasm-ctor-eval" } }, "sha512-d1zPHBN5YlOd3Ff+OUxvVExuFeh8heSnqe+X3bjItFxGLvn4VGBKmrvv7pgy/cRhrIUGuPW138iaWfDhwjyDqg=="],
+
     "bun-types": ["bun-types@1.3.6", "", { "dependencies": { "@types/node": "*" } }, "sha512-OlFwHcnNV99r//9v5IIOgQ9Uk37gZqrNMCcqEaExdkVq3Avwqok1bJFmvGMCkCE0FqzdY8VMOZpfpR3lwI+CsQ=="],
+
+    "long": ["long@5.3.2", "", {}, "sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA=="],
+
+    "tumbler": ["tumbler@root:", {}],
+
+    "tumbler-runtime": ["tumbler-runtime@workspace:packages/tumbler-runtime"],
 
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
