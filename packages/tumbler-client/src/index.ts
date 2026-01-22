@@ -1,12 +1,16 @@
+import type { IWASM } from "./wasm-interface";
+
 /**
  * The client-side library for Tumbler.
  * Handles WASM loading, WebSocket connection, and secure event emission.
  */
-export class TumblerClient {
-    private ws: WebSocket | null = null;
-    private wasm: any = null;
+export class Tumbler {
+    private websocket: WebSocket;
+    private wasm: IWASM;
     private seed: bigint = 0n;
     private lastBuffer: ArrayBuffer | null = null;
+
+
 
     // Public Events
     /** Optional callback invoked when the client is fully initialized and ready. */
@@ -15,21 +19,18 @@ export class TumblerClient {
     public onError?: (msg: string) => void;
 
     /**
-     * Creates an instance of TumblerClient.
+     * Creates an instance of Tumbler for the client.
      * 
      * @param {string} wasmUrl - URL to the compiled .wasm file.
      * @param {string} wasmWsUrl - URL to the WebSocket endpoint (e.g., ws://localhost:8080/ws).
      */
-    constructor(private wasmUrl: string, private wasmWsUrl: string) { }
+    constructor(private wasmUrl: string, private wasmWsUrl: string) {
+        this.websocket = new WebSocket(this.wasmWsUrl);
 
-    /**
-     * Connects to the server.
-     * Loads the WASM module and establishes the WebSocket connection.
-     * 
-     * @returns {Promise<void>} Resolves when the connection process initiates.
-     */
-    async connect() {
-        console.log("[TumblerClient] Loading WASM:", this.wasmUrl);
+    }
+
+
+    private async loadWASM(): Promise<InstanceType<any>> {
         const response = await fetch(this.wasmUrl);
         const buffer = await response.arrayBuffer();
 
@@ -42,17 +43,32 @@ export class TumblerClient {
         };
 
         const { instance } = await WebAssembly.instantiate(buffer, { env });
+
         this.wasm = instance.exports;
+        return instance;
+    }
 
-        console.log("[TumblerClient] Connecting to WebSocket:", this.wasmWsUrl);
-        this.ws = new WebSocket(this.wasmWsUrl);
-        this.ws.binaryType = "arraybuffer";
+    /**
+     * Connects to the server.
+     * Loads the WASM module and establishes the WebSocket connection.
+     * 
+     * @returns {Promise<void>} Resolves when the connection process initiates.
+     */
+    async connect() {
+        console.log("[Tumbler] Loading modules 🏋️‍♀️ 🕺😩");
+        const bun_instance = await this.loadWASM();
+        this.wasm = bun_instance.exports;
 
-        this.ws.onopen = () => {
-            console.log("[TumblerClient] WebSocket Connected");
+
+        console.log("[Tumbler] Connecting to WebSocket:", this.wasmWsUrl);
+        this.websocket = new WebSocket(this.wasmWsUrl);
+        this.websocket.binaryType = "arraybuffer";
+
+        this.websocket.onopen = () => {
+            console.log("[Tumbler] WebSocket Connected");
         };
 
-        this.ws.onmessage = (event) => this.handleMessage(event);
+        this.websocket.onmessage = (event) => this.handleMessage(event);
     }
 
     /**
@@ -123,7 +139,7 @@ export class TumblerClient {
      * @param {any} data - The data payload.
      */
     private sendInternal(event: string, data: any) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
             console.error("WebSocket not connected");
             return;
         }
@@ -146,7 +162,7 @@ export class TumblerClient {
 
         this.lastBuffer = buffer; // Capture for replay attack
         console.log(`[TumblerClient] Emitting '${event}': Token=${token}, Payload=${payloadStr}`);
-        this.ws.send(buffer);
+        this.websocket.send(buffer);
     }
 
     /**
@@ -154,11 +170,11 @@ export class TumblerClient {
      * Intended for testing security mechanisms (replay attack detection).
      */
     public replayLastEvent() {
-        if (!this.ws || !this.lastBuffer) {
+        if (!this.websocket || !this.lastBuffer) {
             console.warn("No previously sent packet to replay.");
             return;
         }
         console.warn("⚠️ ATTACK: Replaying last packet...");
-        this.ws.send(this.lastBuffer);
+        this.websocket.send(this.lastBuffer);
     }
 }

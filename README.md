@@ -1,103 +1,90 @@
-# Tumbler
+# Experimental Research: Tumbler - Zero Knowledge Secure Communications Framework
+![Status](https://img.shields.io/badge/Status-Research_Prototype-blue)
 
-**Tumbler** is a high-performance, secure polymorphic networking framework designed for Bun (on the server) and the Browser/Node (on the client). It leverages WebAssembly (WASM) to handle security primitives and state management, ensuring consistent and fast execution across environments.
+> **Status**: Active Research
+> **Domain**: Cryptography, WebSockets, Systems Architecture
+> **Stack**: TypeScript, AssemblyScript (WASM), Bun
 
-## 🚀 Usage Instructions
+## Abstract
 
-### Prerequisites
-- [Bun](https://bun.sh) v1.0.0 or higher
-- Node.js (for client-side tooling if not using Bun there)
+This repository serves as an open research lab using **Tumbler**, a secure communication framework designed to facilitate verified, low-latency interactions between clients and servers. The primary subject of study is the integration of **Zero Knowledge (ZK) Proofs**, or other cryptographic devices within a high-performance WebSocket environment. The goal is to establish a protocol where client identity and session integrity can be continuously verified without exposing sensitive secrets, using compiled WebAssembly modules for client-side cryptographic operations.
 
-### Installation
-Tumbler is a monorepo. To install dependencies for all packages:
+Tumbler currently implements a polymorphic architecture where the "Runtime" logic is shared between the server and the client but compiled into different targets (Native JS/TS for Server, WASM for Client).
 
-```bash
-bun install
+## Core Research Questions
+
+1.  **Can we enforce session integrity client-side using opaque WASM modules?**
+    *   *Hypothesis*: By compiling session secrets and logic into a WASM binary, we can raise the barrier to entry for reverse-engineering and tampering, creating a "trusted" client environment.
+2.  **How efficient is a custom binary protocol for verified events?**
+    *   *Hypothesis*: A minimal binary header containing a rolling ZK token, followed by a JSON payload, offers the best balance between security overhead and developer usability.
+3.  **Is Xorshift128 sufficient for session tokens in a low-stakes verified environment?**
+    *   *Question*: While not cryptographically secure for high-value secrets, is it sufficient for maintaining session state coherence/synchronization in a real-time app?
+
+## Current System Architecture
+
+The system uses a unique "Compiler" step that injects secrets into an AssemblyScript template before compiling it to WASM.
+
+```mermaid
+graph TD
+    Compiler[Tumbler Compiler] -->|Inject Secret| ASD[AssemblyScript Template]
+    ASD -->|Compile| WASM[Client WASM Module]
+    
+    subgraph Server
+        TS[Tumbler Server] -->|Serve| WASM
+        TS -->|Validate| Session[Validator Session]
+    end
+
+    subgraph Client
+        Browser[Browser/Client] -->|Load| WASM
+        Browser -->|Connect| WS[WebSocket]
+    end
+
+    WASM -->|Generate Token| WS
+    WS -->|Event + Token| TS
+    TS -->|Verify Token| Session
 ```
 
-### 1. The Build Process
-Tumbler utilizes AssemblyScript to compile client-side security limits into WebAssembly.
-Use the CLI to build your project's client WASM:
+### Key Components
 
-```bash
-# From your project root
-bun run tumbler-cli build .
-```
+*   **Tumbler Compiler**: A build-tool that dynamically generates client artifacts. It takes a "Source of Truth" configuration and bakes secrets directly into the client executable.
+*   **Validator (Server)**: A server-side host for the same WASM logic used by the client. It runs a mirror simulation of the client's PRNG state to verify every incoming packet.
+*   **WASM Runtime (Client)**: A lightweight AssemblyScript module that handles the handshake and token generation. It exports a `generateToken()` function that the JS client uses to sign every request.
+*   **Binary Event Bus**: A hybrid protocol.
+    *   **Header (9 bytes)**: `Uint8` Event Type + `Uint64` Session Token.
+    *   **Body**: UTF-8 Encoded JSON.
 
-This commands compiles `src/client/index.ts` (and its imports) into `build/client.wasm`.
+## Current Experiments
 
-### 2. Server Setup (Bun)
-Create a server using `@tumbler/server`.
+### 1. The Mirror Validation Strategy
+We are testing a "Mirror" strategy where the server maintains a precise copy of the client's deterministic state.
+*   **Mechanism**: Both client and server verify a `seed` during the handshake. The client steps its PRNG (Xorshift128) to generate a token for every message. The server steps its own local instance of the PRNG to verify the token matches.
+*   **Goal**: To prevent "Replay Attacks" and "Packet Injection" by ensuring that every packet must be signed by the correct next number in the hidden sequence.
 
-```typescript
-import { TumblerServer } from "@tumbler/server";
-import { join } from "path";
+### 2. Polymorphic Event Handlers
+The framework attempts to unify the definition of events.
+*   **`TumblerEvent`**: A structure (likely shared) that allows defining handlers that can be triggered from either side, though the current implementation is heavier on the Server-Side listening.
 
-const server = new TumblerServer({
-    port: 8080,
-    wasmPath: join(process.cwd(), "build/client.wasm"), // Path to compiled WASM
-    // Optional: Handle static files (like your index.html)
-    staticHandler: (req) => new Response("Hello from HTTP!")
-});
+## Problems and Limitations
 
-// Register Event Handlers
-server.on("chat:message", (data, session) => {
-    console.log(`Received: ${data.text}`);
-    // Session object contains secure state
-});
+1.  **PRNG Predictability**
+    *   *Issue*: Xorshift128 is fast but not cryptographically secure. If an attacker recovers the internal state (4x `u64`), they can predict all future tokens.
+    *   *Mitigation*: The state is hidden inside the WASM memory, requiring the attacker to inspect the WASM heap rather than just network traffic.
+    *   *Planned Fix*: Migration to a stronger CSPRNG (ChaCha20 or similar) if performance allows.
 
-await server.listen();
-```
+2.  **WASM Interop Overhead**
+    *   *Issue*: Crossing the JS <-> WASM boundary for every event token generation adds overhead.
+    *   *Observation*: For high-frequency game loops (e.g., 60 ticks/sec), this might be negligible, but for massive batch processing, it could be a bottleneck.
+    *   *Status*: Monitoring.
 
-### 3. Client Setup (Browser)
-Initialize the client using `@tumbler/client`.
+3.  **Hardcoded Secrets & Recompilation**
+    *   *Issue*: Secrets are baked into the WASM at compile time. Changing a secret requires recompiling and redistributing the WASM blob.
+    *   *Impact*: Key rotation is expensive and requires client refreshing.
 
-```typescript
-import { TumblerClient } from "@tumbler/client";
+## Roadmap & Speculations
 
-const client = new TumblerClient(
-    "/client.wasm",       // URL to serve the .wasm file
-    "ws://localhost:8080/ws" // WebSocket Endpoint
-);
-
-client.onReady = () => {
-    console.log("Secure connection established!");
-    client.emit("chat:message", { text: "Hello World" });
-};
-
-await client.connect();
-```
+*   **Diffie-Hellman Handshake**: Implementing a true key exchange within the WASM module so secrets don't need to be hardcoded, allowing for dynamic session encryption.
+*   **Encrypted Payloads**: Moving beyond just *signing* packets to fully *encrypting* the JSON payload inside the WASM, making the traffic opaque to sniffers.
+*   **Obfuscation Pipeline**: Integrating a post-processing step to obfuscate the WASM binary, making reverse-engineering the state machine significantly harder.
 
 ---
-
-## 📖 Detailed Documentation
-
-### Architecture
-Tumbler uses a **Hybrid Architecture**:
-- **Server**: Runs on Bun, handling WebSocket connections and coordinating events.
-- **Client**: Runs in the browser, but delegates core security logic (token generation, state management) to a **WebAssembly (WASM)** module compiled from AssemblyScript.
-- **Protocol**: 
-  - **Handshake**: Server sends a seed. Client initializes WASM PRNG.
-  - **Events**: Messages are binary packets: `[Type (1b)] [Token (8b)] [Payload (JSON)]`.
-  - **Security**: Each message requires a unique, sequential token generated by the WASM module. This prevents simple replay attacks and ensures session integrity.
-
-### Package Structure
-- **`packages/tumbler-runtime`**: Core logic and the AssemblyScript template for the client WASM. Contains the PRNG (Xorshift128) and token generation logic.
-- **`packages/tumbler-server`**: The server-side library. Manages the WebSocket server (`Bun.serve`), verifies tokens against a server-side WASM instance, and dispatches events.
-- **`packages/tumbler-client`**: The browser client library. Loads the WASM, connects to the WebSocket, and wraps `emit` calls with secure tokens.
-- **`packages/tumbler-cli`**: Command-line tool mainly used for the `build` command to compile the user's client-side AssemblyScript code.
-
----
-
-## 🔮 Project Plans & Limitations
-
-### Current Limitations
-1.  **Crypto Strength**: Currently uses **Xorshift128** for token generation. While fast, it is not cryptographically secure compared to modern standards like X25519 or ChaCha20.
-2.  **Encryption**: Payloads are currently JSON-encoded strings inside a binary wrapper. Full encryption of the payload is planned but not fully implemented in the current version.
-3.  **Hardcoded Secrets**: The current template uses a placeholder `HARDCODED_SECRET` or a seed exchange. A robust Diffie-Hellman key exchange is planned for future iterations.
-
-### Roadmap
-1.  **Full Encryption Tunnel**: Implement *ChaCha20-Poly1305* in WASM to encrypt the entire payload, not just sign it with a token.
-2.  **Handshake Protocol Upgrade**: Move to *X25519* based ECDH handshake for shared secret derivation.
-3.  **RPC Support**: Add native Request-Response patterns (`client.request('getData')`).
-4.  **Binary Serialization**: Replace JSON payload with MessagePack or a custom binary format for improved performance.
+*Documentation created with the assitance of AI*
