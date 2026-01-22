@@ -1,4 +1,4 @@
-# Experimental Research: Tumbler - Zero Knowledge Secure Communications Framework
+# Experimental Research: Zero Knowledge Cryptographically Secure Web Socket Communications Framework
 ![Status](https://img.shields.io/badge/Status-Research_Prototype-blue)
 
 > **Status**: Active Research
